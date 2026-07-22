@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Regla de Dominio: la pertenencia SIEMPRE se resuelve via accountId,
+    // nunca comparando request.auth.uid directo contra un campo "owner".
+    function isMember(accountId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/accounts/$(accountId)/members/$(request.auth.uid));
+    }
+
+    match /accounts/{accountId} {
+      allow read: if isMember(accountId);
+      // Creada por la Function onUserCreate (Admin SDK, bypassa rules).
+      // Fase 3 agrega updates de perfil/plan desde el cliente.
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if isMember(accountId);
+        // Fase 4 agrega invitaciones/roles desde el cliente.
+        allow write: if false;
+      }
+    }
+
+    match /projects/{projectId} {
+      allow read: if isMember(resource.data.accountId);
+      // El proyecto "Default" lo crea la Function onUserCreate.
+      // Fase 2.1 agrega CRUD de proyectos desde el cliente.
+      allow write: if false;
+    }
+
+    // codes, scans, statsDaily, shortSlugs, plans: deny-all hasta que
+    // Fase 1.2+ defina sus reglas de acceso especificas.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -8,24 +8,26 @@ Instrucciones para Claude Code. Trabajar fase por fase, en orden. No adelantar f
 
 **Objetivo:** proyecto compilando, emuladores corriendo, modelo de datos tipado.
 
-- [ ] `ng new qanora` (standalone, routing, SCSS) + Tailwind CSS configurado con tokens de color del design system
-- [ ] Inicializar Firebase: Auth, Firestore, Functions (TS, Node 20), Storage, Hosting, Emuladores
-- [ ] Monorepo simple: paquete `shared/models` con TODAS las interfaces del modelo de datos de CLAUDE.md (incluye `accounts`, `members`, `projects`)
-- [ ] Security Rules base: deny-all + tests de emulador que lo verifican
-- [ ] Instalar: `qr-code-styling`, `bwip-js`, `file-saver`, `ua-parser-js`, `@angular/fire`
-- [ ] CI mínimo: script que corre `ng build` + `tsc` de functions + tests de rules
+- [x] `ng new qanora` (standalone, routing, SCSS) + Tailwind CSS configurado con tokens de color del design system
+- [x] Inicializar Firebase: Auth, Firestore, Functions (TS, Node 20), Storage, Hosting, Emuladores
+- [x] Monorepo simple: paquete `shared/models` con TODAS las interfaces del modelo de datos de CLAUDE.md (incluye `accounts`, `members`, `projects`) — implementado como workspace npm `@qanora/shared` en la raíz (ver CLAUDE.md § Estructura del proyecto Angular)
+- [x] Security Rules base: deny-all + tests de emulador que lo verifican (Firestore; Storage tiene rules deny-all pero sin test dedicado aún)
+- [x] Instalar: `qr-code-styling`, `bwip-js`, `file-saver`, `ua-parser-js`, `@angular/fire`
+- [x] CI mínimo: script que corre `ng build` + `tsc` de functions + tests de rules (`npm run ci`)
 
-**Criterio de salida:** `firebase emulators:start` + `ng serve` levantan sin errores; un test de rules pasa.
+**Criterio de salida:** `firebase emulators:start` + `ng serve` levantan sin errores; un test de rules pasa. ✅ Verificado 2026-07-22.
 
 ---
 
 ## Fase 1 — MVP (4-6 semanas)
 
-### 1.1 Auth + Cuenta + Trial
-- [ ] Registro/login con email+password y Google (`@angular/fire/auth`)
-- [ ] Function `onUserCreate`: crea `accounts/{accountId}` (`plan: 'trial'`, `trialEndsAt: now + 14d`, `codesCount: 0`, `timeZone` detectada del navegador), miembro `admin` en `members/{uid}`, y un proyecto "Default" — TODO código pertenece a un proyecto desde el día uno
-- [ ] Guard de rutas autenticadas + resolución de `accountId` en `AccountService` (core)
-- [ ] Onboarding con días restantes de trial; banner persistente cuando queden ≤ 5
+### 1.1 Auth + Cuenta + Trial ✅ (2026-07-22)
+- [x] Registro/login con email+password y Google (`@angular/fire/auth`)
+- [x] Function `onUserCreate` (implementada como `beforeUserCreated`, 2nd-gen): crea `accounts/{accountId}` (`plan: 'trial'`, `trialEndsAt: now + 14d`, `codesCount: 0`, `timeZone` placeholder — ver nota), miembro `admin` en `members/{uid}`, y un proyecto "Default" — TODO código pertenece a un proyecto desde el día uno. Custom claim `accountId` seteado en el mismo trigger (sin delay de propagación)
+- [x] Guard de rutas autenticadas + resolución de `accountId` en `AccountService` (core), leído del ID token
+- [x] Onboarding con días restantes de trial; banner persistente cuando queden ≤ 5
+
+  Nota: `timeZone` usa un default fijo (`America/Mexico_City`) porque el trigger corre en el servidor sin acceso al navegador. Detectar `Intl.DateTimeFormat().resolvedOptions().timeZone` en el cliente y hacer un update posterior queda pendiente (no bloqueante para el criterio de salida de 1.1).
 
 ### 1.2 Motor de redirección (LA pieza central — hacer primero)
 - [ ] Function HTTP `redirect`: recibe `{DOMAIN}/{slug}` → lookup en `shortSlugs/{slug}` → **302 inmediato** → registro de escaneo async (Regla de Dominio #7)

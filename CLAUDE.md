@@ -119,6 +119,8 @@ plans/{planId}                    // configuración de límites, editable sin de
 ## Estructura del proyecto Angular
 
 ```
+shared/                // paquete npm workspace @qanora/shared — NO vive bajo src/app (ver nota abajo)
+  models/              // interfaces TS espejo del modelo Firestore — ÚNICA definición, importada por Angular y Functions
 src/app/
   core/            // servicios singleton: auth, account, firestore, plan-limits
   features/
@@ -131,9 +133,9 @@ src/app/
     billing/       // Fase 3: plan actual, medidores de uso, portal Stripe
   shared/
     components/    // ui reutilizable (botones, cards, modals)
-    models/        // interfaces TS espejo del modelo Firestore
     pipes/
 functions/src/
+  auth/            // onUserCreate (beforeUserCreated): crea account/member/project Default, setea custom claim accountId
   redirect/        // handler de {DOMAIN}/{slug} + reenvío GA4 Measurement Protocol
   scans/           // registro de escaneo + incrementos statsDaily/scanCount
   batch/           // generación por lote
@@ -142,14 +144,21 @@ functions/src/
 ```
 
 - Componentes standalone, `ChangeDetectionStrategy.OnPush`, signals para estado local
-- Interfaces TypeScript en `shared/models` son la ÚNICA definición del modelo — Functions las importan del mismo paquete compartido. Un solo lugar de verdad
+- **`shared/models` vive en la raíz del repo, NO en `src/app/shared/models`** (DECISIÓN Fase 0, corrige la ubicación inicialmente descrita en este archivo): es un paquete propio (`@qanora/shared`, npm workspace declarado en el `package.json` raíz junto a `functions`). Angular lo resuelve vía `tsconfig` path alias `@qanora/shared`; Functions lo resuelve como dependencia de workspace. Es la ÚNICA definición del modelo — Functions y Angular importan el mismo paquete, nunca duplican interfaces. Los campos `Timestamp` se tipan con `FirestoreTimestamp` (interfaz estructural en `shared/models/firestore-timestamp.ts`), no con la clase concreta de `firebase/firestore` ni `firebase-admin/firestore`, para no atar el paquete compartido a ninguno de los dos SDKs
+- `codes/{codeId}` se modela como unión discriminada por `type` (`QrCode | BarcodeCode`) en vez de una interfaz plana con todos los campos opcionales — más seguro en TypeScript, evita acceder a `qrMode` en un barcode o viceversa
 - Tailwind: solo clases utilitarias core; tokens de color del design system en `tailwind.config` (no hex sueltos en templates)
+
+## Entornos Firebase
+
+DECISIÓN Fase 0: `production` (proyecto `qanora-prod`) y `staging` (proyecto `qanora-staging`) son **dos proyectos Firebase completamente separados** (Firestore, Auth, Functions y Storage aislados), NO dos Hosting sites dentro de un mismo proyecto. Alias declarados en `.firebaserc`: `production` → `qanora-prod`, `staging` → `qanora-staging` (`default` apunta a `qanora-prod`).
+
+El proyecto `qanora-prod` sí tiene dos Hosting sites propios (`qanora`, el público en `qanora.web.app`, y `qanora-prod`, el default sin uso). Para resolver esto sin ambigüedad en ambos proyectos a la vez, el hosting target en `firebase.json` usa **un único nombre de target, `app`, reutilizado en ambos proyectos** — cada uno lo mapea a su propio site (`qanora-prod` → site `qanora`; `qanora-staging` → site `qanora-staging`). Esto es obligatorio: Firebase resuelve los targets de `firebase.json` contra el proyecto activo en el momento del comando, así que targets con nombres distintos por proyecto (ej. `main` vs `staging`) rompen `emulators:start`/`deploy` al cambiar de proyecto. Nunca introducir un nombre de target nuevo sin mapearlo en `.firebaserc` para AMBOS proyectos.
 
 ## Flujo de trabajo
 
 - Commits: Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`)
 - Cada fase del PLAN.md se trabaja en rama propia y se cierra con checklist de la fase completo
-- Emuladores de Firebase (`firebase emulators:start`) para TODO el desarrollo local — nunca desarrollar contra el proyecto de producción
+- Emuladores de Firebase para TODO el desarrollo local — nunca desarrollar contra el proyecto de producción. Correr SIEMPRE `npm run emulators` (= `firebase emulators:start --project staging`), NUNCA `firebase emulators:start` a secas: `environment.development.ts` inicializa el SDK con `projectId: 'qanora-staging'`, y con `singleProjectMode: true` (firebase.json) el emulador por defecto sirve `qanora-prod` (alias `default`). Ese mismatch de projectId rompe la evaluación de Security Rules de forma críptica (`FirebaseError: evaluation error...`) sin ningún error claro de por medio
 - Antes de marcar una tarea como terminada: `ng build` sin errores + Functions compilan + Security Rules pasan tests del emulador
 
 ## Anti-patrones prohibidos

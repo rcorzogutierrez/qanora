@@ -1,0 +1,19 @@
+{
+  "projects": {
+    "default": "qanora-prod",
+    "production": "qanora-prod",
+    "staging": "qanora-staging"
+  },
+  "targets": {
+    "qanora-prod": {
+      "hosting": {
+        "app": ["qanora"]
+      }
+    },
+    "qanora-staging": {
+      "hosting": {
+        "app": ["qanora-staging"]
+      }
+    }
+  }
+}

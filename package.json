@@ -1,0 +1,70 @@
+{
+  "name": "qanora",
+  "version": "0.0.0",
+  "workspaces": [
+    "shared",
+    "functions"
+  ],
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "emulators": "firebase emulators:start --project staging",
+    "test:rules": "firebase emulators:exec --project demo-qanora-rules-test --only firestore \"node --test tests/rules/firestore.rules.test.mjs\"",
+    "build:functions": "npm --prefix functions run build",
+    "ci": "npm run build && npm run build:functions && npm run test:rules"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "overrides": {
+    "firebase": "^12.16.0"
+  },
+  "dependencies": {
+    "@angular/common": "^20.3.0",
+    "@angular/compiler": "^20.3.0",
+    "@angular/core": "^20.3.0",
+    "@angular/fire": "^20.0.1",
+    "@angular/forms": "^20.3.0",
+    "@angular/platform-browser": "^20.3.0",
+    "@angular/router": "^20.3.0",
+    "bwip-js": "^4.11.2",
+    "file-saver": "^2.0.5",
+    "firebase": "^12.16.0",
+    "qr-code-styling": "^1.9.2",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "ua-parser-js": "^2.0.10",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^20.3.32",
+    "@angular/cli": "^20.3.32",
+    "@angular/compiler-cli": "^20.3.0",
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/file-saver": "^2.0.7",
+    "@types/jasmine": "~5.1.0",
+    "jasmine-core": "~5.9.0",
+    "karma": "~6.4.0",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.0",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "postcss": "^8.5.22",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.2"
+  }
+}

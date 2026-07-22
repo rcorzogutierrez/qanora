@@ -1,0 +1,6 @@
+{
+  "name": "@qanora/shared",
+  "version": "0.0.0",
+  "private": true,
+  "types": "models/index.ts"
+}

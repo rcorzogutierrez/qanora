@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Fase 0 — deny-all. Fase 1 agrega reglas de acceso por accountId.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
