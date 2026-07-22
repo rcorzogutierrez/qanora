@@ -14,10 +14,9 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "preserve",
-    "baseUrl": ".",
     "paths": {
-      "@qanora/shared": ["shared/models/index.ts"],
-      "@qanora/shared/*": ["shared/models/*"]
+      "@qanora/shared": ["./shared/models/index.ts"],
+      "@qanora/shared/*": ["./shared/models/*"]
     }
   },
   "angularCompilerOptions": {
