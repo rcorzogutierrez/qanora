@@ -18,5 +18,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
+  {
+    path: 'codes/new',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/qr-editor/qr-editor.component').then((m) => m.QrEditorComponent),
+  },
   { path: '**', redirectTo: 'dashboard' },
 ];

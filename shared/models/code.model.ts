@@ -33,6 +33,9 @@ interface CodeBase {
   projectId: string;
   /** auditoria de quien lo creo; NUNCA usar como dueno del recurso (ver accountId) */
   createdByUid: string;
+  /** editable; si no se especifica al crear, la Function pone un default */
+  name: string;
+  description?: string;
   status: CodeStatus;
   scanCount: number;
   createdAt: FirestoreTimestamp;
@@ -49,6 +52,8 @@ export interface QrCode extends CodeBase {
   shortUrl?: string;
   /** solo dynamic; editable */
   destination?: string;
+  /** solo static; valor crudo codificado (URL para qrType website), INMUTABLE */
+  content?: string;
   design: QrDesign;
 }
 

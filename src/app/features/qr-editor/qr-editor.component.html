@@ -1,0 +1,159 @@
+<div class="mx-auto max-w-3xl px-4 py-10">
+  @if (!selectedType()) {
+    <h1 class="mb-6 text-2xl font-semibold text-brand-900">Elegí el tipo de código QR</h1>
+
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      @for (type of qrTypes; track type.id) {
+        <button
+          type="button"
+          [disabled]="!type.enabled"
+          (click)="selectType(type)"
+          class="relative rounded-lg border border-brand-200 p-4 text-left disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:border-brand-500"
+        >
+          @if (!type.enabled) {
+            <span class="absolute right-2 top-2 rounded bg-brand-100 px-2 py-0.5 text-xs text-brand-900">
+              Próximamente
+            </span>
+          }
+          <p class="font-medium text-brand-900">{{ type.label }}</p>
+          <p class="mt-1 text-xs text-brand-900/70">{{ type.description }}</p>
+        </button>
+      }
+    </div>
+  } @else {
+    <div class="mb-6 flex items-center gap-3">
+      <button type="button" (click)="selectedType.set(null)" class="text-sm text-brand-900 underline">
+        ← Cambiar tipo
+      </button>
+      <h1 class="text-2xl font-semibold text-brand-900">Nuevo código QR — Sitio web</h1>
+    </div>
+
+    <div class="grid gap-8 md:grid-cols-2">
+      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+        <div>
+          <span class="block text-sm font-medium text-brand-900">Modo</span>
+          <div class="mt-1 flex gap-4">
+            <label class="flex items-center gap-2 text-sm text-brand-900">
+              <input type="radio" formControlName="qrMode" value="dynamic" />
+              Dinámico
+            </label>
+            <label class="flex items-center gap-2 text-sm text-brand-900">
+              <input type="radio" formControlName="qrMode" value="static" />
+              Estático
+            </label>
+          </div>
+          <p class="mt-1 text-xs text-brand-900/70">
+            @if (form.controls.qrMode.value === 'dynamic') {
+              Podés editar el destino después de crearlo y ver estadísticas de escaneo.
+            } @else {
+              El destino queda fijo para siempre dentro del QR — no se puede editar ni ver estadísticas.
+            }
+          </p>
+        </div>
+
+        <div>
+          <label for="destination" class="block text-sm font-medium text-brand-900">Destino (URL)</label>
+          <input
+            id="destination"
+            type="url"
+            formControlName="destination"
+            placeholder="https://tusitio.com"
+            class="mt-1 w-full rounded border border-brand-200 px-3 py-2 focus:border-brand-500 focus:outline-none"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="dotColor" class="block text-sm font-medium text-brand-900">Color de puntos</label>
+            <input id="dotColor" type="color" formControlName="dotColor" class="mt-1 h-10 w-full" />
+          </div>
+          <div>
+            <label for="bgColor" class="block text-sm font-medium text-brand-900">Color de fondo</label>
+            <input id="bgColor" type="color" formControlName="bgColor" class="mt-1 h-10 w-full" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="dotStyle" class="block text-sm font-medium text-brand-900">Estilo de puntos</label>
+            <select
+              id="dotStyle"
+              formControlName="dotStyle"
+              class="mt-1 w-full rounded border border-brand-200 px-3 py-2"
+            >
+              @for (style of dotStyles; track style) {
+                <option [value]="style">{{ style }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label for="cornerStyle" class="block text-sm font-medium text-brand-900">Estilo de esquinas</label>
+            <select
+              id="cornerStyle"
+              formControlName="cornerStyle"
+              class="mt-1 w-full rounded border border-brand-200 px-3 py-2"
+            >
+              @for (style of cornerStyles; track style) {
+                <option [value]="style">{{ style }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (errorMessage()) {
+          <p class="text-sm text-status-expired">{{ errorMessage() }}</p>
+        }
+
+        @if (!createdCodeId()) {
+          <button
+            type="submit"
+            [disabled]="submitting()"
+            class="w-full rounded bg-brand-600 py-2 text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            Crear código
+          </button>
+        }
+      </form>
+
+      <div class="flex flex-col items-center gap-4">
+        <div #preview></div>
+
+        @if (createdShortUrl()) {
+          <p class="text-sm text-brand-900">
+            Short link: <span class="font-mono">{{ createdShortUrl() }}</span>
+          </p>
+        }
+
+        @if (createdCodeId()) {
+          <div class="flex gap-2">
+            <button
+              type="button"
+              (click)="download('png')"
+              class="rounded border border-brand-200 px-3 py-2 text-sm text-brand-900"
+            >
+              PNG
+            </button>
+            <button
+              type="button"
+              (click)="download('jpeg')"
+              class="rounded border border-brand-200 px-3 py-2 text-sm text-brand-900"
+            >
+              JPG
+            </button>
+            @if (allowSvg) {
+              <button
+                type="button"
+                (click)="download('svg')"
+                class="rounded border border-brand-200 px-3 py-2 text-sm text-brand-900"
+              >
+                SVG
+              </button>
+            }
+          </div>
+
+          <a routerLink="/dashboard" class="text-sm text-brand-900 underline">← Volver al dashboard</a>
+        }
+      </div>
+    </div>
+  }
+</div>

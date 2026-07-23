@@ -34,8 +34,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // codes, scans, statsDaily, shortSlugs, plans: deny-all hasta que
-    // Fase 1.2+ defina sus reglas de acceso especificas.
+    match /codes/{codeId} {
+      allow read: if isMember(resource.data.accountId);
+      // Creado por la Function createQrCode (Admin SDK, transaccion con
+      // shortSlugs). Fase 1.5 agrega updates puntuales (pausar, destino)
+      // desde el cliente, siempre via Function para mantener shortSlugs en sync.
+      allow write: if false;
+
+      // scans, statsDaily: crudo/agregados, solo Functions escriben Y leen
+      // (Fase 2.2 agrega lectura de statsDaily desde el cliente).
+      match /{subcollection=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // scans, statsDaily, shortSlugs, plans: deny-all hasta que Fase 2.2+/3
+    // defina sus reglas de acceso especificas.
     match /{document=**} {
       allow read, write: if false;
     }

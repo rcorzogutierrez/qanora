@@ -67,6 +67,8 @@ codes/{codeId}
   accountId: string
   projectId: string               // OBLIGATORIO; el MVP crea un "Default project"
   createdByUid: string            // auditoría de quién lo creó
+  name: string                    // editable; default puesto por la Function si no se especifica
+  description?: string            // editable
   type: 'qr' | 'barcode'
   status: 'active' | 'paused' | 'expired'
   scanCount: number               // desnormalizado, incrementado por Function de escaneo
@@ -77,6 +79,7 @@ codes/{codeId}
   shortSlug?: string              // solo dynamic; INMUTABLE tras creación
   shortUrl?: string               // solo dynamic; URL completa con el dominio vigente AL CREAR; INMUTABLE
   destination?: string            // solo dynamic; editable
+  content?: string                // solo static; valor crudo codificado (URL para qrType website), INMUTABLE
   design: { dotColor, bgColor, dotStyle, cornerStyle, logoPath? }
   // Solo barcode:
   symbology: 'code39' | 'code128' | 'ean13' | 'upca' | 'gs1-128'
@@ -115,6 +118,7 @@ plans/{planId}                    // configuración de límites, editable sin de
 6. **Barcodes Code 39:** validar charset permitido (A-Z, 0-9, `- . $ / + % espacio`) antes de renderizar; mostrar error de validación en el formulario, no fallar en el render.
 7. **La redirección responde ANTES de registrar el escaneo.** El 302 nunca espera escrituras en Firestore ni el reenvío a GA4.
 8. **Agregados de stats SIEMPRE en UTC.** `statsDaily/{yyyy-mm-dd}` corta el día en UTC, inmutable. La zona horaria de la cuenta (`timeZone`) se aplica SOLO en la capa de presentación. Nunca re-agregar por zona horaria.
+9. **Los slugs viven en la raíz del dominio (`{DOMAIN}/{slug}`, sin prefijo) y comparten espacio de rutas con la SPA de Angular.** `firebase.json` declara rewrites explícitos para cada ruta de nivel superior de Angular (`/auth`, `/dashboard`, ...) ANTES del rewrite `/*` → Function `redirect` (glob de UN segmento único; `/:slug` con nombre de parámetro NO es reconocido por el emulador de Hosting, usar `/*`). Toda ruta nueva de nivel superior que se agregue a `app.routes.ts` (`projects`, `account`, `billing`, etc. en fases futuras) DEBE sumarse a `firebase.json` en esa misma posición, o quedará opacada por la Function de redirect y resolverá como 404 en vez de servir la app.
 
 ## Estructura del proyecto Angular
 
@@ -144,9 +148,11 @@ functions/src/
 ```
 
 - Componentes standalone, `ChangeDetectionStrategy.OnPush`, signals para estado local
+- **Preferir signals sobre RxJS en todo lo que se pueda modelar como estado reactivo** (`signal()`, `computed()`, `effect()`) — servicios, estado de componentes, composición entre servicios (ej. `AccountService.accountId` → `CodesService.codes`). RxJS queda reservado para lo que signals no resuelve solo: interop con APIs que devuelven `Observable` (AngularFire — `authState`, `docData`, `collectionData`), operators puntuales sin equivalente en signals (`debounceTime` en `valueChanges` de un formulario), o timers/websockets. En esos casos, convertir a signal lo antes posible con `toSignal()` y no encadenar más operators de RxJS de los estrictamente necesarios en el resto del componente/servicio
 - **`shared/models` vive en la raíz del repo, NO en `src/app/shared/models`** (DECISIÓN Fase 0, corrige la ubicación inicialmente descrita en este archivo): es un paquete propio (`@qanora/shared`, npm workspace declarado en el `package.json` raíz junto a `functions`). Angular lo resuelve vía `tsconfig` path alias `@qanora/shared`; Functions lo resuelve como dependencia de workspace. Es la ÚNICA definición del modelo — Functions y Angular importan el mismo paquete, nunca duplican interfaces. Los campos `Timestamp` se tipan con `FirestoreTimestamp` (interfaz estructural en `shared/models/firestore-timestamp.ts`), no con la clase concreta de `firebase/firestore` ni `firebase-admin/firestore`, para no atar el paquete compartido a ninguno de los dos SDKs
 - `codes/{codeId}` se modela como unión discriminada por `type` (`QrCode | BarcodeCode`) en vez de una interfaz plana con todos los campos opcionales — más seguro en TypeScript, evita acceder a `qrMode` en un barcode o viceversa
 - Tailwind: solo clases utilitarias core; tokens de color del design system en `tailwind.config` (no hex sueltos en templates)
+- `functions/src/redirect` (Fase 1.2): lee el país del header `x-country` que en teoría inyecta el edge de Firebase Hosting — esto NO es reproducible en el emulador de Hosting, así que quedó sin verificar contra tráfico real hasta el primer deploy a `staging`. Si el header no llega, el código cae a `country: 'unknown'` sin romper nada. El reenvío a GA4 Measurement Protocol es Fase 2.2, todavía no implementado
 
 ## Entornos Firebase
 

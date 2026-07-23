@@ -35,6 +35,9 @@
             ],
             "styles": [
               "src/styles.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "qr-code-styling"
             ]
           },
           "configurations": {

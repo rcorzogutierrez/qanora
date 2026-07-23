@@ -11,6 +11,21 @@
       </button>
     </div>
     <p class="mt-2 text-sm text-brand-900">Plan: {{ acc.plan }}</p>
+
+    <a
+      routerLink="/codes/new"
+      class="mt-6 inline-block rounded bg-brand-600 px-4 py-2 text-sm text-white hover:bg-brand-700"
+    >
+      Nuevo código QR
+    </a>
+
+    <div class="mt-8 space-y-3">
+      @for (code of codes(); track code.id) {
+        <app-code-card [code]="code" />
+      } @empty {
+        <p class="text-sm text-brand-900/70">Todavía no creaste ningún código.</p>
+      }
+    </div>
   </div>
 } @else {
   <div class="flex min-h-screen items-center justify-center text-brand-900">Cargando cuenta...</div>

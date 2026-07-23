@@ -29,20 +29,31 @@ Instrucciones para Claude Code. Trabajar fase por fase, en orden. No adelantar f
 
   Nota: `timeZone` usa un default fijo (`America/Mexico_City`) porque el trigger corre en el servidor sin acceso al navegador. Detectar `Intl.DateTimeFormat().resolvedOptions().timeZone` en el cliente y hacer un update posterior queda pendiente (no bloqueante para el criterio de salida de 1.1).
 
-### 1.2 Motor de redirección (LA pieza central — hacer primero)
-- [ ] Function HTTP `redirect`: recibe `{DOMAIN}/{slug}` → lookup en `shortSlugs/{slug}` → **302 inmediato** → registro de escaneo async (Regla de Dominio #7)
-- [ ] Registro de escaneo: documento en `scans` + `FieldValue.increment()` en `codes.scanCount` y en `statsDaily/{yyyy-mm-dd}` (UTC — Regla #8) para total, byCountry, byDevice, byOs
-- [ ] Metadata: user-agent parseado con `ua-parser-js`, país vía header `x-country` de Hosting, referrer
-- [ ] Estados: `active` → redirect; `paused` → página "código pausado" con CTA; slug inexistente → 404 amigable
-- [ ] Generación de slugs: 5-6 chars base62, colisión resuelta por transacción sobre `shortSlugs`
+### 1.2 Motor de redirección (LA pieza central — hacer primero) ✅ (2026-07-22)
+- [x] Function HTTP `redirect`: recibe `{DOMAIN}/{slug}` → lookup en `shortSlugs/{slug}` → **302 inmediato** → registro de escaneo async (Regla de Dominio #7)
+- [x] Registro de escaneo: documento en `scans` + `FieldValue.increment()` en `codes.scanCount` y en `statsDaily/{yyyy-mm-dd}` (UTC — Regla #8) para total, byCountry, byDevice, byOs
+- [x] Metadata: user-agent parseado con `ua-parser-js`, país vía header `x-country` de Hosting (sin verificar contra tráfico real todavía — ver nota en CLAUDE.md), referrer
+- [x] Estados: `active` → redirect; `paused` → página "código pausado"; `expired` → página "no disponible"; slug inexistente → 404 amigable
+- [x] Generación de slugs: `generateUniqueSlug()` (6 chars base62, chequeo best-effort contra `shortSlugs`) — la reserva atómica real queda para cuando 1.3 la use dentro de su propia transacción de creación de código
+- [x] Hosting rewrites: rutas de Angular reservadas (`/auth`, `/dashboard`) antes del rewrite `/*` → Function `redirect` (Regla de Dominio #9)
 
-### 1.3 Editor QR
-- [ ] Wizard: tipo (solo `website` en MVP) → contenido → diseño → descarga; el código se crea dentro del proyecto activo
-- [ ] Toggle estático/dinámico con explicación clara de la diferencia
-- [ ] Preview en vivo con `qr-code-styling` (reactive form + `valueChanges` + `debounceTime(150)`)
-- [ ] Panel de diseño: color de puntos, color de fondo, estilo de puntos, estilo de esquinas, logo (upload a Storage, redimensionado client-side a ≤ 512px)
-- [ ] REGLA DE DOMINIO #1: QR dinámico codifica `{DOMAIN}/{slug}`, nunca el destino. Test unitario que lo verifica
-- [ ] Descargas: PNG/JPG (re-render al tamaño según plan, no upscale), SVG si el plan lo permite
+  Verificado end-to-end contra emuladores: código activo → 302 + Location correcto + scan/scanCount/statsDaily registrados; código pausado → página de pausado; slug inexistente → 404; `/dashboard` sigue sirviendo la SPA (no lo tapa el rewrite de slugs).
+
+### 1.3 Editor QR ✅ parcial (2026-07-22)
+- [x] Paso 1: grilla de selección de tipo (`website` habilitado; `vcard`/`wifi`/`whatsapp`/`menu`/`pdf` visibles como "Próximamente" — comunica el roadmap sin fingir funcionalidad de Fase 2.3). Paso 2: formulario contenido → diseño → descarga (simplificado a una sola página, no wizard multi-paso dentro del tipo — ver nota); el código se crea dentro del proyecto Default de la cuenta
+- [x] Toggle estático/dinámico con explicación clara de la diferencia
+- [x] Preview en vivo con `qr-code-styling` (reactive form + `valueChanges` + `debounceTime(150)`)
+- [x] Panel de diseño: color de puntos, color de fondo, estilo de puntos, estilo de esquinas — **logo pendiente** (upload a Storage + resize client-side, ver nota)
+- [x] REGLA DE DOMINIO #1: QR dinámico codifica `{DOMAIN}/{slug}`, nunca el destino. Test unitario (`resolveQrContent`) + verificado en la app real decodificando el PNG descargado con `jsqr`
+- [x] Descargas: PNG/JPG/SVG, re-render a `PlanLimitsService.maxDownloadPx` al descargar (stub temporal hasta Fase 3, ver nota)
+
+  Verificado end-to-end en navegador (Playwright): registro → elegir tipo (grilla con "Próximamente" en los no implementados) → crear QR dinámico → decodificar el PNG descargado confirma que codifica el shortUrl (no el destino) → visitar el shortUrl redirige al destino correcto. También verificado el modo estático (codifica el destino directo, sin shortUrl) y que "Cambiar tipo" vuelve a la grilla.
+
+  Notas / deuda consciente:
+  - **Wizard multi-paso simplificado a un formulario de una página** para esta pasada — dividirlo en pasos (tipo → contenido → diseño → descarga) queda pendiente si se quiere esa UX exacta.
+  - **Upload de logo a Storage** no implementado — el `QrDesign.logoPath` existe en el modelo pero no hay UI para subirlo todavía.
+  - **`PlanLimitsService` es un stub hardcodeado** (`maxDownloadPx`, `allowSvg`) hasta que Fase 3 cree la colección `plans` real — centralizado en un solo servicio para que ningún componente hardcodee límites directamente (anti-patrón prohibido en CLAUDE.md).
+  - Generador de slugs (`generateUniqueSlug`, Fase 1.2) ya está integrado acá vía `createQrCode`, con reintento transaccional ante colisión.
 
 ### 1.4 Editor Barcode individual
 - [ ] Portar la UI del generador de escritorio (referencia: captura Code 39): prefijo, sufijo, número de ítem, relleno con ceros, mayúsculas automáticas, checksum mod43, ancho de barra, alto mm, margen lateral, mostrar texto, tamaño de texto, color de barras/fondo
@@ -51,12 +62,22 @@ Instrucciones para Claude Code. Trabajar fase por fase, en orden. No adelantar f
 - [ ] "Código resultante" visible en vivo (como en la app de escritorio)
 - [ ] Descargas: PNG/SVG con mismas reglas de plan que QR
 
-### 1.5 Dashboard
-- [ ] Vista de proyectos (aunque en MVP solo exista "Default") → lista de códigos del proyecto (query por `accountId` + `projectId`, orden `createdAt desc`, paginada)
-- [ ] Card por código: miniatura, tipo, estado, `scanCount`, acciones: editar destino (solo dynamic), pausar, duplicar, descargar
-- [ ] Edición de destino de QR dinámico actualiza `codes` y `shortSlugs` en batch write
+### 1.5 Dashboard ✅ parcial (2026-07-22)
+- [x] Lista de códigos del proyecto Default (query por `accountId` + `projectId`, orden `createdAt desc`) — **sin paginar todavía** (no urgente con pocos códigos por cuenta en el MVP)
+- [x] Card por código: miniatura (QR real renderizado desde `shortUrl`/`content`), nombre, descripción, estado, `scanCount`, destino, acciones: editar destino (solo dynamic), pausar/reactivar, duplicar, descargar
+- [x] Edición de destino de QR dinámico actualiza `codes` y `shortSlugs` en batch write (`updateCodeDestination`, Function nueva) — el slug/shortUrl nunca se tocan
+- [x] Pausar/reactivar sincroniza `codes.status` y `shortSlugs.status` (`updateCodeStatus`, Function nueva)
 
-**Criterio de salida Fase 1:** flujo completo registro → crear QR dinámico → escanearlo con el teléfono (staging) → ver el escaneo en el dashboard → editar destino → el mismo QR redirige al nuevo destino.
+  Verificado end-to-end en navegador (dos corridas separadas):
+  1. Crear QR dinámico → dashboard muestra "Escaneos: 0" → escanear el shortUrl de verdad (fetch real, no lectura directa de Firestore) → recargar el dashboard → **muestra "Escaneos: 1"**.
+  2. Crear QR dinámico → confirmar que el shortUrl redirige al destino original → editar destino desde la card del dashboard → **el mismo shortUrl ahora redirige al nuevo destino** (Regla de Dominio #2 verificada en la práctica: slug inmutable, destino editable) → pausar → el shortUrl deja de redirigir y muestra la página de pausado.
+
+  Notas / deuda consciente:
+  - Vista de "proyectos" (plural) no existe — en MVP hay un único proyecto Default sin selector de proyecto en la UI (coherente con Fase 2.1, que recién ahí agrega multi-proyecto).
+  - Lista sin paginación — agregar cuando el volumen de códigos por cuenta lo justifique.
+  - Se agregó `codes.name`/`codes.description` (campo no especificado originalmente en CLAUDE.md, ver conversación) y se conectó `accounts.codesCount` (documentado desde Fase 0 pero nunca incrementado hasta ahora) para generar nombres default correlativos ("Código QR 1", "Código QR 2", ...).
+
+**Criterio de salida Fase 1:** flujo completo registro → crear QR dinámico → escanearlo con el teléfono (staging) → ver el escaneo en el dashboard → editar destino → el mismo QR redirige al nuevo destino. ✅ **Verificado end-to-end en emulador** (registro → creación → scanCount incrementado → visible en dashboard → edición de destino → mismo QR redirige al nuevo destino). Pendiente: repetir la verificación con un teléfono real contra `staging` desplegado (no solo emulador).
 
 ---
 

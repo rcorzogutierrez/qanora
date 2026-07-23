@@ -80,3 +80,38 @@ describe('firestore.rules — accounts/members/projects (Fase 1.1)', () => {
     await assertFails(getDoc(doc(db, 'projects/proj1')));
   });
 });
+
+describe('firestore.rules — codes (Fase 1.3)', () => {
+  it('permite a un miembro leer un code de su cuenta', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const seedDb = context.firestore();
+      await setDoc(doc(seedDb, 'accounts/acc1/members/user1'), { role: 'admin' });
+      await setDoc(doc(seedDb, 'codes/code1'), { accountId: 'acc1', projectId: 'proj1', type: 'qr' });
+    });
+
+    const db = testEnv.authenticatedContext('user1').firestore();
+    await assertSucceeds(getDoc(doc(db, 'codes/code1')));
+  });
+
+  it('bloquea a un no-miembro leer un code de otra cuenta', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const seedDb = context.firestore();
+      await setDoc(doc(seedDb, 'accounts/acc1/members/user1'), { role: 'admin' });
+      await setDoc(doc(seedDb, 'codes/code1'), { accountId: 'acc1', projectId: 'proj1', type: 'qr' });
+    });
+
+    const db = testEnv.authenticatedContext('intruder').firestore();
+    await assertFails(getDoc(doc(db, 'codes/code1')));
+  });
+
+  it('bloquea escritura directa de un miembro sobre un code (solo la Function escribe)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const seedDb = context.firestore();
+      await setDoc(doc(seedDb, 'accounts/acc1/members/user1'), { role: 'admin' });
+      await setDoc(doc(seedDb, 'codes/code1'), { accountId: 'acc1', projectId: 'proj1', type: 'qr' });
+    });
+
+    const db = testEnv.authenticatedContext('user1').firestore();
+    await assertFails(setDoc(doc(db, 'codes/code1'), { status: 'paused' }, { merge: true }));
+  });
+});
